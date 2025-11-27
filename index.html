@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Replacement Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            width: 50%;
+            margin: auto;
+            padding: 20px;
+            background: white;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        h2 {
+            color: #333;
+        }
+        input, select, button {
+            margin: 10px;
+            padding: 10px;
+            width: 80%;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            background: #28a745;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+        }
+        button:hover {
+            background: #218838;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            text-align: left;
+        }
+        .step {
+            background: #d1ecf1;
+            border-left: 5px solid #0c5460;
+            padding: 5px;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Page Replacement Algorithm Simulator</h2>
+        <label for="refString">Page Reference String (space-separated):</label>
+        <input type="text" id="refString" placeholder="e.g. 7 0 1 2 0 3 4 2 3 0 3">
+        <br>
+        <label for="frames">Number of Frames:</label>
+        <input type="number" id="frames" min="1" placeholder="e.g. 3">
+        <br>
+        <label for="algorithm">Select Algorithm:</label>
+        <select id="algorithm">
+            <option value="FIFO">FIFO</option>
+            <option value="LRU">LRU</option>
+            <option value="Optimal">Optimal</option>
+        </select>
+        <br>
+        <button id="run">Run Simulation</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const inputRefString = document.getElementById("refString");
+            const inputFrames = document.getElementById("frames");
+            const runButton = document.getElementById("run");
+            const algoSelect = document.getElementById("algorithm");
+            const resultDiv = document.getElementById("result");
+    
+            runButton.addEventListener("click", function () {
+                const refString = inputRefString.value.split(" ").map(Number);
+                const numFrames = parseInt(inputFrames.value);
+                const algorithm = algoSelect.value;
+                
+                if (isNaN(numFrames) || numFrames <= 0 || refString.some(isNaN)) {
+                    alert("Please enter valid inputs.");
+                    return;
+                }
+                
+                let pageFaults = 0;
+                let pageHits = 0;
+                let frames = new Set();
+                let history = [];
+    
+                if (algorithm === "FIFO") {
+                    let queue = [];
+                    refString.forEach(page => {
+                        if (!frames.has(page)) {
+                            pageFaults++;
+                            if (frames.size >= numFrames) {
+                                frames.delete(queue.shift());
+                            }
+                            frames.add(page);
+                            queue.push(page);
+                        } else {
+                            pageHits++;
+                        }
+                        history.push(Array.from(frames));
+                    });
+                } 
+                else if (algorithm === "LRU") {
+                    let map = new Map();
+                    refString.forEach(page => {
+                        if (!frames.has(page)) {
+                            pageFaults++;
+                            if (frames.size >= numFrames) {
+                                let lru = Array.from(map.keys()).reduce((a, b) => map.get(a) < map.get(b) ? a : b);
+                                frames.delete(lru);
+                                map.delete(lru);
+                            }
+                            frames.add(page);
+                        } else {
+                            pageHits++;
+                        }
+                        map.set(page, history.length);
+                        history.push(Array.from(frames));
+                    });
+                } 
+                else if (algorithm === "Optimal") {
+                    refString.forEach((page, i) => {
+                        if (!frames.has(page)) {
+                            pageFaults++;
+                            if (frames.size >= numFrames) {
+                                let future = {};
+                                frames.forEach(f => {
+                                    let nextUse = refString.slice(i + 1).indexOf(f);
+                                    future[f] = nextUse === -1 ? Infinity : nextUse;
+                                });
+                                let toRemove = Object.keys(future).reduce((a, b) => future[a] > future[b] ? a : b);
+                                frames.delete(Number(toRemove));
+                            }
+                            frames.add(page);
+                        } else {
+                            pageHits++;
+                        }
+                        history.push(Array.from(frames));
+                    });
+                }
+                
+                renderResults(history, pageFaults, pageHits);
+            });
+    
+            function renderResults(history, faults, hits) {
+                resultDiv.innerHTML = `<h3>Results</h3>`;
+                history.forEach((step, i) => {
+                    resultDiv.innerHTML += `<div class="step">Step ${i + 1}: ${step.join(", ")}</div>`;
+                });
+                resultDiv.innerHTML += `<p><strong>Page Faults:</strong> ${faults}</p>`;
+                resultDiv.innerHTML += `<p><strong>Page Hits:</strong> ${hits}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
